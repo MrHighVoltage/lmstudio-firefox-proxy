@@ -31,7 +31,7 @@ cargo fmt            # format
 
 ## Releasing
 
-To create a new release:
+Bump the version in `Cargo.toml`, then create a new release:
 
 ```sh
 git tag v0.1.0

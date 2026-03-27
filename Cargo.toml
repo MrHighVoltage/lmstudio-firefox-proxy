@@ -1,6 +1,6 @@
 [package]
 name = "lmstudio-firefox-proxy"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 authors = ["Mario Kahlhofer <mario@blueray.at>"]
 description = "A proxy that bridges Firefox's AI sidebar to a local LM Studio instance"
