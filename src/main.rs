@@ -219,6 +219,10 @@ const LANDING_HTML: &str = include_str!("../static/landing.html");
 const CHAT_HTML: &str = include_str!("../static/chat.html");
 const CHAT_CSS: &str = include_str!("../static/chat.css");
 const CHAT_JS: &str = include_str!("../static/chat.js");
+const VENDOR_MARKED_JS: &str = include_str!("../static/vendor/marked.min.js");
+const VENDOR_HLJS: &str = include_str!("../static/vendor/highlight.min.js");
+const VENDOR_HLJS_GITHUB: &str = include_str!("../static/vendor/github.min.css");
+const VENDOR_HLJS_GITHUB_DARK: &str = include_str!("../static/vendor/github-dark.min.css");
 
 async fn serve_css() -> impl IntoResponse {
     ([(header::CONTENT_TYPE, "text/css; charset=utf-8")], CHAT_CSS)
@@ -228,6 +232,26 @@ async fn serve_js() -> impl IntoResponse {
     ([
         (header::CONTENT_TYPE, "application/javascript; charset=utf-8"),
     ], CHAT_JS)
+}
+
+async fn serve_vendor_marked() -> impl IntoResponse {
+    ([
+        (header::CONTENT_TYPE, "application/javascript; charset=utf-8"),
+    ], VENDOR_MARKED_JS)
+}
+
+async fn serve_vendor_hljs() -> impl IntoResponse {
+    ([
+        (header::CONTENT_TYPE, "application/javascript; charset=utf-8"),
+    ], VENDOR_HLJS)
+}
+
+async fn serve_vendor_hljs_github() -> impl IntoResponse {
+    ([(header::CONTENT_TYPE, "text/css; charset=utf-8")], VENDOR_HLJS_GITHUB)
+}
+
+async fn serve_vendor_hljs_github_dark() -> impl IntoResponse {
+    ([(header::CONTENT_TYPE, "text/css; charset=utf-8")], VENDOR_HLJS_GITHUB_DARK)
 }
 
 // --- Main ---
@@ -248,6 +272,10 @@ async fn main() {
         .route("/api/chat", get(handle_stream))
         .route("/static/chat.css", get(serve_css))
         .route("/static/chat.js", get(serve_js))
+        .route("/vendor/marked.min.js", get(serve_vendor_marked))
+        .route("/vendor/highlight.min.js", get(serve_vendor_hljs))
+        .route("/vendor/github.min.css", get(serve_vendor_hljs_github))
+        .route("/vendor/github-dark.min.css", get(serve_vendor_hljs_github_dark))
         .with_state(state);
 
     let listener = TcpListener::bind(&args.listen)
