@@ -4,6 +4,13 @@ A lightweight Rust proxy that bridges Firefox's AI sidebar to a local [LM Studio
 
 Firefox's AI chatbot sidebar sends `GET /?q=<prompt>` requests to the configured provider URL. LM Studio expects OpenAI-compatible `POST /v1/chat/completions` requests. This proxy translates between the two.
 
+## Features
+
+- **Streaming** — Responses appear token-by-token as the model generates them (SSE)
+- **Rendered Markdown** — Code blocks with syntax highlighting (highlight.js), tables, lists, etc.
+- **Thinking model support** — `<think>` blocks are shown in a collapsible panel during generation, then auto-collapsed once reasoning completes
+- **Dark/Light mode** — Follows the system `prefers-color-scheme` automatically
+
 ## Prerequisites
 
 - **Rust** 1.85+ (`rustc 1.94.1` recommended)
@@ -55,16 +62,23 @@ Firefox AI Sidebar                    This Proxy                         LM Stud
       |                                   |                                  |
       |  GET /?q=Explain+this+code        |                                  |
       |---------------------------------->|                                  |
+      |  200 OK  (HTML page with JS)      |                                  |
+      |<----------------------------------|                                  |
+      |                                   |                                  |
+      |  JS opens EventSource:            |                                  |
+      |  GET /api/chat?q=Explain+...      |                                  |
+      |---------------------------------->|                                  |
       |                                   |  POST /v1/chat/completions       |
-      |                                   |  {"messages":[{"role":"user",    |
-      |                                   |    "content":"Explain this..."}]}|
+      |                                   |  {stream: true, messages: [...]} |
       |                                   |--------------------------------->|
       |                                   |                                  |
-      |                                   |  {"choices":[{"message":         |
-      |                                   |    {"content":"Here is..."}}]}   |
-      |                                   |<---------------------------------|
-      |  200 OK (text/markdown)           |                                  |
-      |  "Here is the explanation..."     |                                  |
+      |                                   |  data: {"choices":[{"delta":     |
+      |                                   |    {"content":"Here"}}]}         |
+      |  SSE: data: Here                  |<---------------------------------|
+      |<----------------------------------|  ...token by token...            |
+      |  (JS renders markdown live)       |                                  |
+      |                                   |  data: [DONE]                    |
+      |  SSE: event: done                 |<---------------------------------|
       |<----------------------------------|                                  |
 ```
 

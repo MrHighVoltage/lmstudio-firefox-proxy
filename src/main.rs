@@ -420,13 +420,9 @@ body {
       }
     }
 
-    if (parsed.main) {
-      responseEl.innerHTML = marked.parse(parsed.main.trim());
-      responseEl.querySelectorAll('pre code:not(.hljs)').forEach(function(el) {
-        hljs.highlightElement(el);
-      });
-    } else if (!parsed.isThinking) {
-      responseEl.innerHTML = marked.parse(rawContent.trim());
+    var mainSource = hasThinking ? parsed.main : rawContent;
+    if (mainSource && (!parsed.isThinking || !hasThinking)) {
+      responseEl.innerHTML = marked.parse(mainSource.trim());
       responseEl.querySelectorAll('pre code:not(.hljs)').forEach(function(el) {
         hljs.highlightElement(el);
       });
