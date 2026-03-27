@@ -2,6 +2,13 @@
 name = "lmstudio-firefox-proxy"
 version = "0.1.0"
 edition = "2024"
+authors = ["Mario Kahlhofer <mario@blueray.at>"]
+description = "A proxy that bridges Firefox's AI sidebar to a local LM Studio instance"
+license = "MIT"
+repository = "https://github.com/blu3r4y/lmstudio-firefox-proxy"
+readme = "README.md"
+keywords = ["firefox", "lmstudio", "proxy", "llm", "ai"]
+categories = ["command-line-utilities", "web-programming"]
 
 [dependencies]
 axum = "0.8"
@@ -9,7 +16,5 @@ clap = { version = "4", features = ["derive", "env"] }
 reqwest = { version = "0.12", features = ["json", "stream"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "sync"] }
 tokio-stream = "0.1"
-tracing = "0.1"
-tracing-subscriber = "0.3"

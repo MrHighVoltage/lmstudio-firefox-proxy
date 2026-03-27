@@ -16,6 +16,10 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_stream::{wrappers::ReceiverStream, StreamExt};
 
+macro_rules! log {
+    ($($arg:tt)*) => { eprintln!($($arg)*) };
+}
+
 /// A proxy that bridges Firefox's AI sidebar to a local LM Studio instance.
 ///
 /// Firefox sends GET requests with `?q=<prompt>` to the configured chat provider URL.
@@ -99,7 +103,7 @@ async fn handle_stream(
         return (StatusCode::BAD_REQUEST, "Missing 'q' parameter").into_response();
     };
 
-    tracing::info!(prompt_len = prompt.len(), "Streaming request");
+    log!("Streaming request (prompt_len={})", prompt.len());
 
     let chat_req = ChatRequest {
         model: state.args.model.clone(),
@@ -118,7 +122,7 @@ async fn handle_stream(
         Ok(r) => {
             let status = r.status();
             let body = r.text().await.unwrap_or_default();
-            tracing::error!(%status, %body, "LM Studio error");
+            log!("LM Studio error: HTTP {} {}", status, body);
             return sse_error(&format!(
                 "LM Studio returned HTTP {}: {}",
                 status, body
@@ -126,7 +130,7 @@ async fn handle_stream(
             .await;
         }
         Err(e) => {
-            tracing::error!(%e, "Connection failed");
+            log!("Connection failed: {}", e);
             return sse_error(&format!(
                 "Could not connect to LM Studio at {}.\n\nIs LM Studio running with the server enabled?\n\nError: {}",
                 state.args.lmstudio_url, e
@@ -145,7 +149,7 @@ async fn handle_stream(
             let chunk = match chunk {
                 Ok(c) => c,
                 Err(e) => {
-                    tracing::error!(%e, "Stream read error");
+                    log!("Stream read error: {}", e);
                     let _ = tx
                         .send(Ok(Event::default()
                             .event("server_error")
@@ -258,8 +262,6 @@ async fn serve_vendor_hljs_github_dark() -> impl IntoResponse {
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt::init();
-
     let args = Args::parse();
 
     let state = Arc::new(AppState {
@@ -285,12 +287,6 @@ async fn main() {
             std::process::exit(1);
         });
 
-    tracing::info!(
-        listen = %args.listen,
-        lmstudio_url = %args.lmstudio_url,
-        model = %if args.model.is_empty() { "(auto)" } else { &args.model },
-        "Proxy started"
-    );
     eprintln!(
         "LM Studio Firefox Proxy listening on http://{}",
         args.listen
