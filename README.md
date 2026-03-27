@@ -22,7 +22,7 @@ The human provided the idea, direction, and feedback. The AI wrote the code.
 
 - **Streaming** — Responses appear token-by-token as the model generates them (SSE)
 - **Rendered Markdown** — Code blocks with syntax highlighting, tables, lists, and more
-- **Thinking model support** — `<think>` blocks are shown in a collapsible panel during generation, then auto-collapsed once reasoning completes
+- **Thinking model support** — Reasoning is shown in a collapsible panel during generation, then auto-collapsed once reasoning completes. Supports both the `reasoning_content` field (LM Studio 0.4.8+) and `<think>` tags in older versions
 - **Dark / Light mode** — Follows the system `prefers-color-scheme` automatically
 - **Fully offline** — All frontend dependencies (marked.js, highlight.js) are vendored and embedded in the binary
 - **Single binary** — No runtime dependencies, no config files, just run it
@@ -80,6 +80,10 @@ All options can also be set via environment variables:
 | `--lmstudio-url`  | `LMSTUDIO_URL` | `http://localhost:1234`                   |
 | `--model` / `-m`  | `MODEL`        | _(empty — uses LM Studio's loaded model)_ |
 
+## Compatibility
+
+Tested with **LM Studio 0.4.8** (latest). Older versions that use the same OpenAI-compatible API should also work — thinking models are supported regardless of whether the server sends reasoning via the `reasoning_content` field (new) or `<think>` tags (old).
+
 ## Firefox Configuration
 
 1. Open `about:config` in Firefox
@@ -89,30 +93,3 @@ All options can also be set via environment variables:
 5. Open the AI chatbot sidebar (**Ctrl+Alt+X** or via the sidebar menu)
 
 You should see a "Proxy is running" landing page. Select text on any page and use the "Ask AI" context menu, or use the sidebar directly.
-
-## How it works
-
-```txt
-Firefox AI Sidebar                    This Proxy                         LM Studio
-      |                                   |                                  |
-      |  GET /?q=Explain+this+code        |                                  |
-      |---------------------------------->|                                  |
-      |  200 OK  (HTML page with JS)      |                                  |
-      |<----------------------------------|                                  |
-      |                                   |                                  |
-      |  JS opens EventSource:            |                                  |
-      |  GET /api/chat?q=Explain+...      |                                  |
-      |---------------------------------->|                                  |
-      |                                   |  POST /v1/chat/completions       |
-      |                                   |  {stream: true, messages: [...]} |
-      |                                   |--------------------------------->|
-      |                                   |                                  |
-      |                                   |  data: {"choices":[{"delta":     |
-      |                                   |    {"content":"Here"}}]}         |
-      |  SSE: data: Here                  |<---------------------------------|
-      |<----------------------------------|  ...token by token...            |
-      |  (JS renders markdown live)       |                                  |
-      |                                   |  data: [DONE]                    |
-      |  SSE: event: done                 |<---------------------------------|
-      |<----------------------------------|                                  |
-```

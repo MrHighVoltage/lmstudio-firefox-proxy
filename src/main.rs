@@ -74,6 +74,7 @@ struct StreamChoice {
 #[derive(Deserialize)]
 struct Delta {
     content: Option<String>,
+    reasoning_content: Option<String>,
 }
 
 // --- Query parameter from Firefox ---
@@ -146,6 +147,7 @@ async fn handle_stream(
     tokio::spawn(async move {
         let mut stream = resp.bytes_stream();
         let mut buffer = String::new();
+        let mut in_thinking = false;
 
         while let Some(chunk) = stream.next().await {
             let chunk = match chunk {
@@ -178,24 +180,53 @@ async fn handle_stream(
                     let data = data.trim();
 
                     if data == "[DONE]" {
+                        if in_thinking {
+                            let _ = tx.send(Ok(Event::default().data("</think>"))).await;
+                        }
                         let _ = tx.send(Ok(Event::default().event("done").data(""))).await;
                         return;
                     }
 
                     if let Ok(chunk) = serde_json::from_str::<StreamChunk>(data)
-                        && let Some(content) = chunk
-                            .choices
-                            .first()
-                            .and_then(|c| c.delta.content.as_deref())
-                        && tx.send(Ok(Event::default().data(content))).await.is_err()
+                        && let Some(delta) = chunk.choices.first().map(|c| &c.delta)
                     {
-                        return; // client disconnected
+                        // Thinking support (two modes):
+                        // - New (0.4.8+): reasoning arrives in delta.reasoning_content
+                        //   → we wrap it in <think>…</think> for the browser
+                        // - Old: reasoning arrives as <think>…</think> inside delta.content
+                        //   → passes through as-is; chat.js parses the tags client-side
+                        if let Some(rc) = delta.reasoning_content.as_deref() {
+                            let mut out = String::new();
+                            if !in_thinking {
+                                in_thinking = true;
+                                out.push_str("<think>");
+                            }
+                            out.push_str(rc);
+                            if tx.send(Ok(Event::default().data(out))).await.is_err() {
+                                return;
+                            }
+                        }
+                        // Handle regular content
+                        if let Some(content) = delta.content.as_deref() {
+                            let mut out = String::new();
+                            if in_thinking {
+                                in_thinking = false;
+                                out.push_str("</think>");
+                            }
+                            out.push_str(content);
+                            if tx.send(Ok(Event::default().data(out))).await.is_err() {
+                                return;
+                            }
+                        }
                     }
                 }
             }
         }
 
         // Stream ended without [DONE] — still signal completion
+        if in_thinking {
+            let _ = tx.send(Ok(Event::default().data("</think>"))).await;
+        }
         let _ = tx.send(Ok(Event::default().event("done").data(""))).await;
     });
 
