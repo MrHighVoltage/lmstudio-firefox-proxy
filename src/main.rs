@@ -327,29 +327,117 @@ body {
   margin-left: 2px; font-size: 0.8em;
 }
 @keyframes blink { 50% { opacity: 0; } }
+
+/* ---- Thinking block ---- */
+#thinking-wrapper { display: none; margin-bottom: 12px; }
+#thinking-wrapper.active { display: block; }
+#thinking-header {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.8em; color: var(--muted);
+  cursor: pointer; user-select: none; padding: 4px 0;
+}
+#thinking-header .chevron {
+  display: inline-block; transition: transform 0.2s; font-size: 0.7em;
+}
+#thinking-header .chevron.collapsed { transform: rotate(-90deg); }
+#thinking {
+  max-height: 150px; overflow-y: auto;
+  padding: 8px 12px;
+  border-left: 2px solid var(--muted);
+  background: var(--block-bg); border-radius: 0 4px 4px 0;
+  color: var(--muted); font-size: 0.82em; line-height: 1.5;
+  transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+}
+#thinking.collapsed {
+  max-height: 0; padding: 0 12px; opacity: 0; overflow: hidden;
+}
+#thinking p { margin: 0.3em 0; }
+#thinking code { font-size: 0.85em; }
 </style></head><body>
 <div id="status"><div class="spinner"></div><span>Thinking&#x2026;</span></div>
+<div id="thinking-wrapper">
+  <div id="thinking-header"><span class="chevron">&#x25BC;</span><span class="label">Thinking&#x2026;</span></div>
+  <div id="thinking"></div>
+</div>
 <div id="response" class="streaming"></div>
 <div id="error"></div>
 <script>
 (function() {
-  var statusEl  = document.getElementById('status');
+  var statusEl   = document.getElementById('status');
   var responseEl = document.getElementById('response');
-  var errorEl   = document.getElementById('error');
-  var content = '', isDone = false, renderFrame = null;
+  var errorEl    = document.getElementById('error');
+  var thinkWrap  = document.getElementById('thinking-wrapper');
+  var thinkHead  = document.getElementById('thinking-header');
+  var thinkEl    = document.getElementById('thinking');
+  var thinkLabel = thinkHead.querySelector('.label');
+  var thinkChev  = thinkHead.querySelector('.chevron');
 
-  function render() {
-    responseEl.innerHTML = marked.parse(content);
-    responseEl.querySelectorAll('pre code:not(.hljs)').forEach(function(el) {
-      hljs.highlightElement(el);
-    });
+  var rawContent = '', isDone = false, renderFrame = null;
+  var thinkingDone = false;
+
+  // Toggle thinking visibility on header click
+  thinkHead.addEventListener('click', function() {
+    thinkEl.classList.toggle('collapsed');
+    thinkChev.classList.toggle('collapsed');
+  });
+
+  function parseThinking() {
+    var startTag = rawContent.indexOf('<think>');
+    if (startTag === -1) return { thinking: '', main: rawContent, isThinking: false };
+    var afterStart = startTag + 7;
+    var endTag = rawContent.indexOf('</think>', afterStart);
+    if (endTag === -1) {
+      // Still inside thinking block
+      return { thinking: rawContent.substring(afterStart), main: '', isThinking: true };
+    }
+    // Thinking complete
+    return {
+      thinking: rawContent.substring(afterStart, endTag),
+      main: rawContent.substring(endTag + 8),
+      isThinking: false
+    };
+  }
+
+  function renderAll() {
+    var parsed = parseThinking();
+    var hasThinking = parsed.thinking.length > 0;
+
+    if (hasThinking) {
+      thinkWrap.classList.add('active');
+      thinkEl.innerHTML = marked.parse(parsed.thinking.trim());
+
+      if (!parsed.isThinking && !thinkingDone) {
+        // Thinking just finished — collapse and relabel
+        thinkingDone = true;
+        thinkLabel.textContent = 'Show reasoning';
+        thinkEl.classList.add('collapsed');
+        thinkChev.classList.add('collapsed');
+      }
+
+      // Auto-scroll thinking div while still streaming thought
+      if (parsed.isThinking) {
+        thinkEl.scrollTop = thinkEl.scrollHeight;
+      }
+    }
+
+    if (parsed.main) {
+      responseEl.innerHTML = marked.parse(parsed.main.trim());
+      responseEl.querySelectorAll('pre code:not(.hljs)').forEach(function(el) {
+        hljs.highlightElement(el);
+      });
+    } else if (!parsed.isThinking) {
+      responseEl.innerHTML = marked.parse(rawContent.trim());
+      responseEl.querySelectorAll('pre code:not(.hljs)').forEach(function(el) {
+        hljs.highlightElement(el);
+      });
+    }
   }
 
   function scheduleRender() {
     if (renderFrame) return;
     renderFrame = requestAnimationFrame(function() {
       renderFrame = null;
-      render();
+      renderAll();
       window.scrollTo(0, document.body.scrollHeight);
     });
   }
@@ -365,7 +453,7 @@ body {
 
   es.onmessage = function(e) {
     statusEl.style.display = 'none';
-    content += e.data;
+    rawContent += e.data;
     scheduleRender();
   };
 
@@ -373,7 +461,7 @@ body {
     isDone = true;
     es.close();
     responseEl.classList.remove('streaming');
-    render();
+    renderAll();
   });
 
   es.addEventListener('server_error', function(e) {
@@ -385,10 +473,10 @@ body {
   es.onerror = function() {
     es.close();
     responseEl.classList.remove('streaming');
-    if (!isDone && !content) {
+    if (!isDone && !rawContent) {
       showError('Failed to connect to the proxy server.');
-    } else if (content) {
-      render();
+    } else if (rawContent) {
+      renderAll();
     }
   };
 })();

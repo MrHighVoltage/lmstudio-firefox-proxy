@@ -32,11 +32,11 @@ The binary will be at `target/release/lmstudio-firefox-proxy` (or `.exe` on Wind
 
 All options can also be set via environment variables:
 
-| Flag | Env var | Default |
-|---|---|---|
-| `--listen` / `-l` | `LISTEN_ADDR` | `127.0.0.1:8000` |
-| `--lmstudio-url` | `LMSTUDIO_URL` | `http://localhost:1234` |
-| `--model` / `-m` | `MODEL` | *(empty — uses LM Studio's loaded model)* |
+| Flag              | Env var        | Default                                   |
+| ----------------- | -------------- | ----------------------------------------- |
+| `--listen` / `-l` | `LISTEN_ADDR`  | `127.0.0.1:8000`                          |
+| `--lmstudio-url`  | `LMSTUDIO_URL` | `http://localhost:1234`                   |
+| `--model` / `-m`  | `MODEL`        | _(empty — uses LM Studio's loaded model)_ |
 
 ## Firefox Configuration
 
